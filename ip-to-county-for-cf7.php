@@ -3,7 +3,7 @@
  * Plugin Name: CF7 Country Detector
  * Plugin URI: https://github.com/builderhall/CF7-Country-Detector
  * Description: Captures user IP location when a Contact Form 7 form is submitted.
- * Version: 1.0
+ * Version: 1.1
  * License: GPLv3 or later
  * Author: Builder Hall Ltd.
  * Author URI: https://builderhall.com
@@ -20,8 +20,10 @@ function capture_user_ip_location($contact_form) {
     if ($submission) {
 
         // Get user's IP address
-        if(!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $user_ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+        $user_ip = '';
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ip_array = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+            $user_ip = trim($ip_array[0]);
         } else {
             $user_ip = $_SERVER['REMOTE_ADDR'];
         }
@@ -29,14 +31,16 @@ function capture_user_ip_location($contact_form) {
         // Get user's IP location using
         $ip_info = json_decode(file_get_contents("https://ipinfo.io/{$user_ip}/json"));
 
-        // Extract relevant location information
-        $location = isset($ip_info->city) ? $ip_info->city . ', ' : '';
-        $location .= isset($ip_info->region) ? $ip_info->region . ', ' : '';
-        $location .= isset($ip_info->country) ? $ip_info->country : '';
+        // Extract relevant location information if available
+        if ($ip_info && isset($ip_info->city, $ip_info->region, $ip_info->country)) {
+            $location = "{$ip_info->city}, {$ip_info->region}, {$ip_info->country}";
+        } else {
+            $location = 'Location data not available';
+        }
 
         // Add the location to the Contact Form 7 email body
         $mail = $contact_form->prop('mail');
-        $mail['body'] .= "\nUser Location: {$location}"; 
+        $mail['body'] .= "\nUser Location: {$location}";
 
         // Update the mail properties
         $contact_form->set_properties(array('mail' => $mail));
